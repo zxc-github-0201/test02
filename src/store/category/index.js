@@ -1,0 +1,125 @@
+import Vue from 'vue'
+import Vuex from 'vuex'
+Vue.use(Vuex)
+import {get,post} from '../../utils/axios'
+import ElementUI from 'element-ui'
+const category={
+    namespaced : true,
+    state:{ 
+        categoryList:[],
+        total:0,//总数
+        listQuery:{
+            page:1,
+            limit:5
+        },
+        categorylist:{},//模态框数据保存
+        multipleSelection:[],//存放批量删除的id数组
+        selectlist:[],//存放所有的信息的数组
+        changeselect:{}//存放选中元素
+    },
+    mutations:{
+        SETLIST(state,data){  
+            state.categoryList=data
+        },
+        SETcategorylist(state,data){
+            state.categorylist={...data}
+        },
+        SETselectlist(state,data){
+            state.selectlist=data
+        },
+        SETchangeselect(state,data){
+            state.changeselect=data
+        }
+    },
+    actions:{
+        fetchData(context){
+            post('/category/query',{
+                page:context.state.listQuery.page-1,
+                pageSize:context.state.listQuery.limit,
+                name:context.state.changeselect
+            }).then((resp)=>{
+                // console.log(resp)
+                context.state.total=resp.data.total
+                context.commit('SETLIST',resp.data.list)
+            }).catch((err)=>{
+                console.log(err)
+            })
+        },
+        //增加栏目
+        addHandler(context){
+            post('/category/saveOrUpdate',context.state.categorylist).then((resp)=>{
+                ElementUI.Notification({
+                    title:"成功",
+                    message:"操作成功",
+                    type:'success',
+                    duration:2000
+                });
+                context.dispatch('fetchData') 
+            })
+        },
+         //清空模态框中的数据
+         clearcategorylist(context){
+            context.commit('SETcategorylist',{})
+        },
+        updateHandler(context,row){
+            context.commit('SETcategorylist',row)
+        },
+        deleteById(context,id){
+            get('/category/deleteById?id='+id).then((resp)=>{
+                context.dispatch('fetchData')
+                ElementUI.Notification({
+                    title:'成功',
+                    message:'删除成功',
+                    type:'success',
+                    duration:2000
+                });
+            }).catch((err)=>{
+                    
+                    ElementUI.Notification.error({
+                    title:'失败',
+                    message:'该栏目有父栏目无法删除!',
+                    duration:2000
+                })
+            })
+        },
+        handleSelectionChange(context,val){
+            context.state.multipleSelection=[],
+            val.forEach(function(item){
+                context.state.multipleSelection.push(item.id)
+            })
+
+        },
+        tobatchDelete(context){
+            if(context.state.multipleSelection.length!==0){
+                post('/category/batchDelete',{ids:context.state.multipleSelection.toString()}).then((resp)=>{
+                    ElementUI.Notification({
+                        title:'成功',
+                        type:'success',
+                        message:'批量删除成功',
+                        duration:2000,
+                    })
+                    context.dispatch('fetchData')
+                }).catch((err)=>{
+                    ElementUI.Notification.error({
+                        title:'失败',
+                        message:'有栏目父栏目不为空!',
+                        duration:2000,
+                    })
+                })
+            }   
+        },
+        //查询所有/category/findAll
+        findAll(context){
+            get('/category/findAll').then((resp)=>{
+                console.log(resp)
+                context.commit('SETselectlist',resp.data)
+            })
+        },
+        //选择框选中
+        changeselect(context,select){
+            console.log(select)
+            context.commit('SETchangeselect',select)
+        },
+    }
+}
+export default category
